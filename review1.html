@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarSystems Pro - Interactive Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #00eaff;
+            --primary-dark: #0099aa;
+            --bg-gradient: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
+        * { box-sizing: border-box; transition: all 0.3s ease; }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #fff;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        button { cursor: pointer; border: none; outline: none; }
+        .hidden { display: none !important; }
+
+        /* Loading Animation */
+        #loadingScreen {
+            position: fixed; inset: 0; background: #0b1418;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; font-weight: 300; letter-spacing: 4px;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 3px solid var(--glass);
+            border-top-color: var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+
+        /* Login Styling */
+        #loginScreen {
+            min-height: 100vh; display: none; align-items: center; justify-content: center;
+            background: url('https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&q=80&w=1000') center/cover;
+        }
+        #loginScreen::before { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0.7); }
+
+        .loginBox {
+            position: relative; background: var(--glass); backdrop-filter: blur(15px);
+            padding: 40px; width: 350px; border-radius: 20px; text-align: center;
+            border: 1px solid var(--glass-border); box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+        .loginBox input {
+            width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px;
+            border: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); color: white;
+        }
+        .loginBox button {
+            width: 100%; padding: 12px; border-radius: 8px; margin-top: 10px;
+            background: var(--primary); color: #000; font-weight: 700; text-transform: uppercase;
+        }
+
+        /* Navigation */
+        nav {
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(10px);
+            padding: 15px; display: flex; gap: 10px; justify-content: center;
+            position: sticky; top: 0; z-index: 50; border-bottom: 1px solid var(--glass-border);
+        }
+        nav button {
+            background: transparent; color: #ccc; padding: 10px 18px;
+            border-radius: 12px; font-size: 14px; display: flex; align-items: center; gap: 8px;
+        }
+        nav button:hover, nav button.active { background: var(--glass); color: var(--primary); }
+
+        /* Content Sections */
+        section { display: none; padding: 50px 20px; animation: slideUp 0.5s ease forwards; }
+        .card {
+            background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--glass-border);
+            max-width: 800px; margin: auto; padding: 40px; border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .card i.main-icon {
+            font-size: 50px; color: var(--primary); display: block; text-align: center;
+            margin-bottom: 20px; filter: drop-shadow(0 0 10px var(--primary));
+        }
+        .card h1 { text-align: center; font-weight: 300; letter-spacing: 2px; margin-bottom: 30px; }
+
+        /* Interaction Elements */
+        .controls { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin: 25px 0; }
+        .ctrl {
+            padding: 12px 24px; border-radius: 30px; background: var(--primary);
+            color: #000; font-weight: 600; font-size: 14px;
+        }
+        .ctrl:hover { transform: scale(1.05); box-shadow: 0 0 15px var(--primary); }
+        .ctrl-outline {
+            background: transparent; border: 1px solid var(--primary); color: var(--primary);
+        }
+
+        .status-badge {
+            display: inline-block; padding: 6px 15px; border-radius: 20px;
+            background: rgba(0,0,0,0.3); font-family: monospace; border: 1px solid var(--glass-border);
+        }
+        .on { color: #00ff88; border-color: #00ff88; }
+        .off { color: #ff4444; border-color: #ff4444; }
+
+        /* Modal */
+        #infoModal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+            display: none; align-items: center; justify-content: center; z-index: 200;
+        }
+        .modalBox {
+            background: #1a2a30; border: 1px solid var(--primary);
+            border-radius: 20px; padding: 30px; max-width: 500px; width: 90%; text-align: center;
+        }
+
+        /* Animations */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 600px) {
+            nav { overflow-x: auto; justify-content: flex-start; }
+            .card { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loadingScreen">
+        <div class="spinner"></div>
+        <p>INITIALIZING SYSTEMS</p>
+    </div>
+
+    <div id="loginScreen">
+        <div class="loginBox">
+            <i class="fa-solid fa-shield-halved" style="font-size: 40px; color: var(--primary); margin-bottom: 15px;"></i>
+            <h2>System Login</h2>
+            <input id="userInput" placeholder="Operator Name" value="Admin">
+            <input id="passInput" type="password" placeholder="Access Code (4 Digits)" value="1234">
+            <button onclick="handleLogin()">Authorize</button>
+            <p id="loginError" style="color: #ff4444; font-size: 13px; margin-top: 10px;"></p>
+        </div>
+    </div>
+
+    <div id="siteWrapper" class="hidden">
+        <nav id="mainNav">
+            <button onclick="show('home')" class="nav-btn" data-id="home"><i class="fa fa-house"></i> Dashboard</button>
+            <button onclick="show('engine')" class="nav-btn" data-id="engine"><i class="fa fa-microchip"></i> Engine</button>
+            <button onclick="show('assess')" class="nav-btn" data-id="assess"><i class="fa fa-clipboard-check"></i> Assessment</button>
+            <button onclick="show('feed')" class="nav-btn" data-id="feed"><i class="fa fa-comment"></i> Feedback</button>
+        </nav>
+
+        <section id="home">
+            <div class="card">
+                <i class="fa fa-car-side main-icon"></i>
+                <h1>Vehicle Overview</h1>
+                <p style="text-align: center; opacity: 0.8;">Welcome, <span id="userNameDisplay"></span>. All systems are currently in standby.</p>
+                <div class="controls">
+                    <button class="ctrl" onclick="show('engine')">System Check</button>
+                    <button class="ctrl ctrl-outline" onclick="toggleFact()">Quick Fact</button>
+                </div>
+                <div id="factBox" class="hidden" style="text-align: center; padding: 15px; background: rgba(0,234,255,0.1); border-radius: 10px;">
+                    <i class="fa fa-lightbulb" style="color: var(--primary)"></i> A Modern V8 engine has hundreds of moving parts working in synchronization.
+                </div>
+            </div>
+        </section>
+
+        <section id="engine">
+            <div class="card">
+                <i class="fa fa-gauge-high main-icon"></i>
+                <h1>Engine Management</h1>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    Ignition: <span id="engState" class="status-badge off">DISENGAGED</span>
+                </div>
+                <div class="controls">
+                    <button class="ctrl" id="ignBtn" onclick="toggleEngine()">Start Engine</button>
+                    <button class="ctrl ctrl-outline" onclick="openModal('V8 Performance','This virtual engine simulates a 4.0L Twin-Turbo V8 with 500hp.')">Specs</button>
+                </div>
+                <div id="engineAnimation" class="hidden" style="text-align: center;">
+                    <i class="fa fa-fan fa-spin" style="font-size: 40px; color: var(--primary)"></i>
+                    <p>Cooling Fans Active</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="assess">
+            <div class="card">
+                <i class="fa fa-graduation-cap main-icon"></i>
+                <h1>System Knowledge Test</h1>
+                <p style="text-align: center; font-size: 0.9em; margin-bottom: 20px;">Test your understanding of the vehicle safety protocols.</p>
+                <form onsubmit="handleAssessment(event)" id="quizForm">
+                    <div style="margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px;">
+                        <p>1. What is required before shifting to 'Drive' (D) in this system?</p>
+                        <label><input type="radio" name="q1" value="a"> High Fuel Levels</label><br>
+                        <label><input type="radio" name="q1" value="b"> Engine Ignition Active</label><br>
+                        <label><input type="radio" name="q1" value="c"> External Lights On</label>
+                    </div>
+                    <button class="ctrl" type="submit">Validate Knowledge</button>
+                </form>
+                <p id="quizResult" style="text-align: center; margin-top: 15px; font-weight: bold;"></p>
+            </div>
+        </section>
+
+        <section id="feed">
+            <div class="card">
+                <h1>Diagnostics Feedback</h1>
+                <form onsubmit="sendFeedback(event)" style="display: flex; flex-direction: column; gap: 15px;">
+                    <input placeholder="Name" required style="padding: 12px; border-radius: 8px; border: none; background: rgba(255,255,255,0.05); color: white;">
+                    <textarea rows="4" placeholder="Report any system anomalies..." required style="padding: 12px; border-radius: 8px; border: none; background: rgba(255,255,255,0.05); color: white;"></textarea>
+                    <button class="ctrl" type="submit">Send Report</button>
+                </form>
+                <p id="thanks" class="hidden" style="color: var(--primary); text-align: center; margin-top: 15px;">Report submitted successfully.</p>
+            </div>
+        </section>
+    </div>
+
+    <div id="infoModal">
+        <div class="modalBox">
+            <h3 id="mTitle"></h3>
+            <p id="mBody" style="line-height: 1.6; margin: 20px 0; opacity: 0.9;"></p>
+            <button class="ctrl" onclick="closeModal()">Dismiss</button>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            isEngineOn: false
+        };
+
+        // 1. Regular Expression: Enforces exactly 4 numeric digits
+        const accessCodeRegex = /^\d{4}$/;
+
+        function show(id) {
+            document.querySelectorAll('section').forEach(s => s.style.display = 'none');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            const target = document.getElementById(id);
+            if(target) target.style.display = 'block';
+            
+            const navBtn = document.querySelector(`[data-id="${id}"]`);
+            if(navBtn) navBtn.classList.add('active');
+        }
+
+        function handleLogin() {
+            const user = document.getElementById('userInput').value;
+            const pass = document.getElementById('passInput').value;
+            const errorMsg = document.getElementById('loginError');
+
+            // Using Regex for Validation
+            if (user.trim() !== "" && accessCodeRegex.test(pass)) {
+                document.getElementById('userNameDisplay').textContent = user;
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('siteWrapper').classList.remove('hidden');
+                show('home');
+            } else {
+                errorMsg.textContent = "Invalid Credentials. Access Code must be 4 digits.";
+            }
+        }
+
+        function handleAssessment(e) {
+            e.preventDefault();
+            const selected = document.querySelector('input[name="q1"]:checked');
+            const resultDisplay = document.getElementById('quizResult');
+
+            if (!selected) {
+                resultDisplay.textContent = "Please select an answer.";
+                resultDisplay.style.color = "orange";
+                return;
+            }
+
+            if (selected.value === "b") {
+                resultDisplay.textContent = "✓ Verified: Knowledge accurate.";
+                resultDisplay.style.color = "#00ff88";
+            } else {
+                resultDisplay.textContent = "X Access Denied: Incorre   ct safety protocol.";
+                resultDisplay.style.color = "#ff4444";
+            }
+        }
+
+        function toggleEngine() {
+            state.isEngineOn = !state.isEngineOn;
+            const badge = document.getElementById('engState');
+            const btn = document.getElementById('ignBtn');
+            const anim = document.getElementById('engineAnimation');
+
+            if (state.isEngineOn) {
+                badge.textContent = "ACTIVE";
+                badge.className = "status-badge on";
+                btn.textContent = "Stop Engine";
+                anim.classList.remove('hidden');
+            } else {
+                badge.textContent = "DISENGAGED";
+                badge.className = "status-badge off";
+                btn.textContent = "Start Engine";
+                anim.classList.add('hidden');
+            }
+        }
+
+        function toggleFact() {
+            document.getElementById('factBox').classList.toggle('hidden');
+        }
+
+        function openModal(t, b) {
+            document.getElementById('mTitle').textContent = t;
+            document.getElementById('mBody').textContent = b;
+            document.getElementById('infoModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+
+        function sendFeedback(e) {
+            e.preventDefault();
+            document.getElementById('thanks').classList.remove('hidden');
+            e.target.reset();
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').style.display = 'none';
+                    document.getElementById('loginScreen').style.display = 'flex';
+                }, 500);
+            }, 1500);
+        });
+    </script>
+</body>
+</html>
